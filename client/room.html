@@ -1,0 +1,87 @@
+<!-- room.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Room</title>
+</head>
+<body>
+  <h1>Game Room</h1>
+  <p>You are in <span id="currentRoom"></span></p>
+  <span id="room-players">0</span> players</p>
+  
+  <div id="chatBox"></div>
+  <input type="text" id="messageInput" placeholder="Type your message...">
+  <button onclick="sendMessage()">Send</button>
+
+  <button onclick="leaveRoom()">Leave Room</button>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    document.getElementById('currentRoom').innerText = roomParam;
+    const clientID = Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    const socket = new WebSocket('ws://localhost:8080');
+
+    
+    socket.addEventListener('open', () => {
+      // Gửi sự kiện 'initialization' khi kết nối WebSocket đã mở
+      socket.send(JSON.stringify({ type: 'initialization', room: roomParam, client_id: clientID }));
+    });
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log(data);
+
+      switch (data.type) {
+        case 'message':
+          appendMessage(`${data.client_id}: ${data.message}`);
+          break;
+        
+        case 'roomInfo':
+          if(roomParam == 'room1') {
+            document.getElementById('room-players').innerText = data.room1;
+          } else {
+            document.getElementById('room-players').innerText = data.room2;
+          }
+          break;
+        
+        case 'disconnect':
+          alert(`${data.client_id} left the room`);
+          break;
+      }
+    };
+    
+    function leaveRoom() {
+      socket.send(JSON.stringify({ type: 'disconnect', room: roomParam, client_id: clientID }));
+
+      window.close();
+    };
+
+    function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const message = messageInput.value.trim();
+
+      if (message !== '') {
+        socket.send(JSON.stringify({ type: 'message', message, room: roomParam, client_id: clientID }));
+        appendMessage(`You: ${message}`);
+        messageInput.value = '';
+      }
+    }
+
+    function appendMessage(message) {
+      const chatBox = document.getElementById('chatBox');
+      const messageDiv = document.createElement('div');
+      messageDiv.innerText = message;
+      chatBox.appendChild(messageDiv);
+    }
+
+    window.addEventListener('beforeunload', () => {
+      // Gửi thông điệp 'beforeUnload' về server
+      socket.send(JSON.stringify({ type: 'reload', room: roomParam, client_id: clientID }));
+    });
+  </script>
+</body>
+</html>

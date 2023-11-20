@@ -1,0 +1,48 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Example</title>
+</head>
+<body>
+  <h1>Game Rooms</h1>
+  <div id="room1">
+    <p>Room 1: <span id="room1-players">0</span> players</p>
+    <button onclick="joinRoom('room1')">Join Room 1</button>
+  </div>
+  <div id="room2">
+    <p>Room 2: <span id="room2-players">0</span> players</p>
+    <button onclick="joinRoom('room2')">Join Room 2</button>
+  </div>
+
+  <script>
+    const socket = new WebSocket('ws://localhost:8080');
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+        
+      switch (data.type) {
+        case 'roomInfo':
+          // Cập nhật thông tin về số người chơi trong mỗi room
+          document.getElementById('room1-players').innerText = data.room1;
+          document.getElementById('room2-players').innerText = data.room2;
+          break;
+
+        case 'joinedRoom':
+          window.open(`/room?room=${data.room}`, '_blank');
+          break;
+
+        case 'roomFull':
+          alert('This room is full. Please choose another room.');
+          break;
+      }
+    };
+
+    function joinRoom(room) {
+      socket.send(JSON.stringify({ type: 'joinRoom', room }));
+    }
+  </script>
+</body>
+</html>
